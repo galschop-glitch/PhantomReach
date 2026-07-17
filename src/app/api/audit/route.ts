@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRouteUser } from "@/lib/auth/route";
 import { runAuditPipeline } from "@/lib/agents/orchestrator";
+import { hydrateAIProviderConfiguration } from "@/lib/ai/claude";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
+    await hydrateAIProviderConfiguration();
     const { user, response } = await requireRouteUser();
     if (response) {
       return response;

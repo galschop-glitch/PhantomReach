@@ -19,6 +19,7 @@ import type { LLMProvider, AgenticRequest, AgenticResponse } from "./types";
 import { anthropicProvider, resetAnthropicClient } from "./providers/anthropic";
 import { openaiProvider, resetOpenAIClient, isUsingCodex } from "./providers/openai";
 import { googleProvider, resetGoogleClient } from "./providers/google";
+import { getProviderSecret } from "@/lib/config/provider-config";
 
 // ---------------------------------------------------------------------------
 // Backward-compat exports (KEEP — orchestrator imports these)
@@ -76,6 +77,34 @@ export function resetProviders(): void {
   resetAnthropicClient();
   resetOpenAIClient();
   resetGoogleClient();
+}
+
+/**
+ * Load AI settings saved through /settings into the provider environment.
+ *
+ * Data-source keys already use getProviderSecret directly, while the three AI
+ * SDK clients historically read process.env. Hydrating immediately before an
+ * audit keeps the in-app Settings workflow functional across app restarts.
+ */
+export async function hydrateAIProviderConfiguration(): Promise<void> {
+  const mappings = [
+    ["llm_provider", "LLM_PROVIDER"],
+    ["openai_api_key", "OPENAI_API_KEY"],
+    ["anthropic_api_key", "ANTHROPIC_API_KEY"],
+    ["google_ai_api_key", "GOOGLE_AI_API_KEY"],
+  ] as const;
+
+  let changed = false;
+
+  for (const [secretKey, envName] of mappings) {
+    const value = await getProviderSecret(secretKey);
+    if (value && process.env[envName] !== value) {
+      process.env[envName] = value;
+      changed = true;
+    }
+  }
+
+  if (changed) resetProviders();
 }
 
 /**
